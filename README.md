@@ -13,6 +13,8 @@ openclaw automations add --every 5m --trigger-script ci-red.js \
 
 `openclaw-jev-trigger` is an [OpenClaw](https://openclaw.ai) plugin. It adds one tool, `jev_when`, that asks the agent's **decision model** whether a condition written in ordinary words is true for what a watcher just observed. It also ships a small CLI that writes the trigger script for you.
 
+> **OpenJEV support:** Jev is built by [TypeSafe](https://typesafe.ai). This fork keeps TypeSafe as the default and adds optional support for [OpenJEV](https://openjev.sh), a free community gateway to the same Jev model — set `OPENJEV_API_KEY` (or `JEV_PROVIDER=openjev`) to use it. Original project: https://github.com/yousan/openclaw-jev-trigger by @yousan.
+
 - **Jev is the judge.** Calls go through OpenClaw's `decisionModel` role (`api.runtime.decisions.evaluate`), so hosted [Jev](https://typesafe.ai) (`typesafe/jev-latest`) is the default story. A local Kev server or a CPU ONNX classifier works too. You change one config line, not the code.
 - **Quiet ticks cost nothing.** When the answer is "no", the automation returns `fire: false` and no conversation model runs. Only a "yes" wakes the model.
 - **Measured, not claimed.** On 76 synthetic watcher ticks, hosted Jev got **75 right (99%)**, with **0 false wake-ups**, **231 ms** median, and about **$0.000016 per check**. A 5-minute watcher costs roughly **$0.14 a month** in Jev calls. The first-try JavaScript rules got 87%. [Details ↓](#benchmark)
@@ -82,6 +84,15 @@ openclaw config set plugins.entries.typesafe.config.apiKey \
   '{"source":"store","provider":"default","id":"TYPESAFE_API_KEY"}' --json
 openclaw config set plugins.entries.typesafe.enabled true --json
 openclaw config set agents.defaults.decisionModel '"typesafe/jev-latest"' --json
+
+# 1b. Alternative: OpenJEV (free community gateway to the same Jev model)
+#     Same @openclaw/typesafe plugin, pointed at OpenJEV's endpoint.
+# openclaw secrets store set OPENJEV_API_KEY                       # from https://openjev.sh/dashboard
+# openclaw config set plugins.entries.typesafe.config.apiKey \
+#   '{"source":"store","provider":"default","id":"OPENJEV_API_KEY"}' --json
+# openclaw config set plugins.entries.typesafe.config.baseUrl \
+#   '"https://api.openjev.sh/v1/systemone"' --json
+# openclaw config set agents.defaults.decisionModel '"typesafe/openjev"' --json
 
 # 2. This plugin (from a clone, until it is on ClawHub)
 git clone https://github.com/yousan/openclaw-jev-trigger && cd openclaw-jev-trigger
@@ -153,6 +164,7 @@ Point `agents.defaults.decisionModel` (or one agent's `decisionModel`) at anothe
 | decisionModel | Where it runs | Notes |
 |---|---|---|
 | `typesafe/jev-latest` | TypeSafe (hosted) | The main target. Evidence is **sent to TypeSafe**, so don't watch secrets or personal data. |
+| `typesafe/openjev` | OpenJEV (community gateway) | Free gateway to the same Jev model. Set `baseUrl` to `https://api.openjev.sh/v1/systemone` and `OPENJEV_API_KEY`. Same data-sending caveat applies. |
 | `typesafe/kev-latest` | your GPU / Apple Silicon ([Kev](https://github.com/jaredpalmer/kev)) | Set `plugins.entries.typesafe.config.baseUrl` to `http://127.0.0.1:8009`. The data stays local. *Not measured here: no GPU on the test box.* |
 | `onnx/deberta-v3-base-zeroshot-v2.0` | CPU, `@openclaw/onnx` | Free and offline. See the table for quality. Evidence has a 512-token limit: set `plugins.entries.jev-trigger.config.maxEvidenceChars` to ~1200. |
 | `onnx/gliclass-edge-v3.0` | CPU | Fast, but it can't tell these conditions apart (near chance). |
